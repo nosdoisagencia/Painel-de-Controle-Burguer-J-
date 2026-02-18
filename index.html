@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Burguer Já Pro | Gestão Completa</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --sidebar: #0f172a; --bg: #f8fafc; --accent: #3b82f6;
+            --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; color: #1e293b; }
+
+        /* Sidebar */
+        nav { width: 250px; background: var(--sidebar); color: white; display: flex; flex-direction: column; padding: 25px; }
+        nav h2 { font-size: 20px; color: var(--accent); margin-bottom: 40px; display: flex; align-items: center; gap: 10px; }
+        nav a { color: #94a3b8; text-decoration: none; padding: 12px; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.3s; }
+        nav a.active { background: #1e293b; color: white; }
+        nav a:hover { background: #1e293b; color: white; }
+
+        /* Main Content */
+        main { flex: 1; padding: 40px; overflow-y: auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .header-action { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        
+        /* Tabela */
+        .table-container { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f1f5f9; padding: 15px; text-align: left; font-size: 12px; color: #64748b; text-transform: uppercase; }
+        td { padding: 15px; border-bottom: 1px solid #f1f5f9; }
+
+        /* Status & Botões */
+        .btn-step { border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; color: white; width: 100%; transition: 0.3s; }
+        .btn-cozinha { background: var(--accent); }
+        .btn-rota { background: var(--warning); }
+        .btn-whats { background: var(--success); }
+        .btn-wait { background: #e2e8f0; color: #64748b; cursor: not-allowed; }
+
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+        .badge-0 { background: #dbeafe; color: #1e40af; } /* Cozinha */
+        .badge-1 { background: #fef3c7; color: #92400e; } /* Rota */
+        .badge-2 { background: #f1f5f9; color: #475569; } /* Entregue (Contando tempo) */
+        .badge-3 { background: #dcfce7; color: #166534; animation: pulse 2s infinite; } /* Pronto p/ Feedback */
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+        /* Config Form */
+        .config-card { background: white; padding: 30px; border-radius: 12px; max-width: 600px; }
+        .field { margin-bottom: 20px; }
+        .field label { display: block; margin-bottom: 8px; font-weight: 600; }
+        .field input, .field textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <h2><i class="fas fa-hamburger"></i> Burguer Já</h2>
+    <a onclick="showPage('dash')" id="link-dash" class="active"><i class="fas fa-chart-line"></i> Dashboard</a>
+    <a onclick="showPage('hist')" id="link-hist"><i class="fas fa-history"></i> Histórico</a>
+    <a onclick="showPage('conf')" id="link-conf"><i class="fas fa-cog"></i> Configurações</a>
+</nav>
+
+<main>
+    <div id="page-dash" class="page active">
+        <div class="header-action">
+            <h1>Controle de Pedidos</h1>
+            <button onclick="novoPedido()" class="btn-step" style="width:auto; background: #1e293b;">+ Novo Pedido Manual</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Cliente / Pedido</th>
+                        <th>Status</th>
+                        <th>Tempo Espera</th>
+                        <th style="width: 200px;">Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-dashboard"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="page-hist" class="page">
+        <h1>Histórico de Feedbacks</h1>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Data de Envio</th>
+                        <th>Telefone</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-historico"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="page-conf" class="page">
+        <h1>Configurações</h1>
+        <div class="config-card">
+            <div class="field">
+                <label>Tempo de Espera p/ Feedback (minutos)</label>
+                <input type="number" id="cfgTempo">
+            </div>
+            <div class="field">
+                <label>Link de Avaliação (Google/iFood)</label>
+                <input type="text" id="cfgLink">
+            </div>
+            <div class="field">
+                <label>Mensagem padrão</label>
+                <textarea id="cfgMsg" rows="4"></textarea>
+                <small style="color: #666;">Use <b>{nome}</b> e <b>{link}</b> para preencher automaticamente.</small>
+            </div>
+            <button onclick="salvarConfig()" class="btn-step btn-cozinha">Salvar Configurações</button>
+        </div>
+    </div>
+</main>
+
+<script>
+    // 1. CONFIGURAÇÃO FIREBASE
+    const firebaseConfig = { databaseURL: "https://burguer-ja-default-rtdb.firebaseio.com/" };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // 2. VARIÁVEIS GLOBAIS
+    let pedidos = [];
+    let historico = JSON.parse(localStorage.getItem('bj_hist_v4')) || [];
+    let configs = JSON.parse(localStorage.getItem('bj_conf_v4')) || { tempo: 60, link: 'https://g.page/sua-loja', msg: 'Oi {nome}! 🍔 Esperamos que seu lanche estivesse ótimo. Se puder, avalie-nos no link: {link}' };
+
+    // Carrega configs nos campos ao abrir
+    document.getElementById('cfgTempo').value = configs.tempo;
+    document.getElementById('cfgLink').value = configs.link;
+    document.getElementById('cfgMsg').value = configs.msg;
+
+    // 3. FUNÇÃO DE NAVEGAÇÃO
+    function showPage(pageId) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+        document.getElementById('page-' + pageId).classList.add('active');
+        document.getElementById('link-' + pageId).classList.add('active');
+        render();
+    }
+
+    // 4. ESCUTAR FIREBASE (TEMPO REAL)
+    database.ref('pedidos').on('value', (snapshot) => {
+        const data = snapshot.val();
+        pedidos = data ? Object.values(data) : [];
+        render();
+    });
+
+    // 5. FUNÇÃO DE RENDERIZAÇÃO
+    function render() {
+        const dashCorpo = document.getElementById('lista-dashboard');
+        if (!dashCorpo) return;
+        
+        dashCorpo.innerHTML = '';
+        const agora = Date.now();
+
+        pedidos.forEach(p => {
+            // Lógica de mudança automática de status 2 para 3 (Feedback Pronto)
+            if(p.status === 2 && (agora - p.horaEntrega) >= (configs.tempo * 60000)) {
+                p.status = 3;
+            }
+
+            let btn = '';
+            let tempoTxt = '--';
+
+            if(p.status === 0) {
+                btn = `<button class="btn-step btn-cozinha" onclick="mudarStatus('${p.id}', 1)">Saiu p/ Entrega</button>`;
+            } else if(p.status === 1) {
+                btn = `<button class="btn-step btn-rota" onclick="mudarStatus('${p.id}', 2)">Entregue</button>`;
+            } else if(p.status === 2) {
+                const decorrido = Math.floor((agora - p.horaEntrega) / 60000);
+                const restante = configs.tempo - decorrido;
+                btn = `<button class="btn-step btn-wait" disabled>Aguardar ${restante}m</button>`;
+                tempoTxt = `${restante} min restante`;
+            } else if(p.status === 3) {
+                btn = `<button class="btn-step btn-whats" onclick="enviarFeedback('${p.id}')">Enviar Feedback</button>`;
+                tempoTxt = `<b style="color:var(--success)">PRONTO!</b>`;
+            }
+
+            dashCorpo.innerHTML += `
+                <tr>
+                    <td>
+                        <b>${p.nome}</b><br>
+                        <small>${p.itens || 'Pedido Manual'}</small><br>
+                        <small style="color:#888">${p.telefone}</small>
+                    </td>
+                    <td><span class="badge badge-${p.status}">${["Cozinha", "Em Rota", "Entregue", "Feedback"][p.status]}</span></td>
+                    <td>${tempoTxt}</td>
+                    <td>${btn}</td>
+                </tr>`;
+        });
+
+        // Render Histórico
+        const histCorpo = document.getElementById('lista-historico');
+        if(histCorpo) {
+            histCorpo.innerHTML = historico.map(h => `
+                <tr>
+                    <td>${h.nome}</td>
+                    <td>${new Date(h.data).toLocaleString()}</td>
+                    <td>${h.telefone}</td>
+                </tr>`).join('');
+        }
+    }
+
+    // 6. AÇÕES
+    function mudarStatus(id, novo) {
+        const updates = { status: novo };
+        if(novo === 2) updates.horaEntrega = Date.now();
+        database.ref('pedidos/' + id).update(updates);
+    }
+
+    function enviarFeedback(id) {
+        const p = pedidos.find(x => x.id == id);
+        const txt = configs.msg.replace('{nome}', p.nome).replace('{link}', configs.link);
+        
+        // Abre o WhatsApp
+        window.open(`https://wa.me/55${p.telefone.replace(/\D/g,'')}?text=${encodeURIComponent(txt)}`);
+        
+        setTimeout(() => {
+            if(confirm("Deseja concluir o pedido e mover para o histórico?")) {
+                historico.unshift({ nome: p.nome, telefone: p.telefone, data: Date.now() });
+                localStorage.setItem('bj_hist_v4', JSON.stringify(historico));
+                database.ref('pedidos/' + id).remove();
+            }
+        }, 1000);
+    }
+
+    function novoPedido() {
+        const nome = prompt("Nome do Cliente:");
+        const telefone = prompt("WhatsApp (com DDD):");
+        if(nome && telefone) {
+            const id = Date.now();
+            database.ref('pedidos/' + id).set({
+                id: id,
+                nome: nome,
+                telefone: telefone,
+                status: 0,
+                itens: "Pedido Manual",
+                horario: new Date().toISOString()
+            });
+        }
+    }
+
+    function salvarConfig() {
+        configs = { 
+            tempo: parseInt(document.getElementById('cfgTempo').value), 
+            link: document.getElementById('cfgLink').value,
+            msg: document.getElementById('cfgMsg').value 
+        };
+        localStorage.setItem('bj_conf_v4', JSON.stringify(configs));
+        alert("Configurações salvas!");
+        render();
+    }
+
+    // Atualiza a tela a cada 30 segundos para o cronômetro de feedback
+    setInterval(render, 30000);
+</script>
+</body>
+</html>
