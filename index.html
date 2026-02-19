@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Burguer Já | Gestão de Pedidos</title>
+    <title>Painel Burguer Já | Gestão & Financeiro</title>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
@@ -11,20 +11,27 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
-        :root { --primary: #e63946; --dark: #1b1b1b; --success: #2ecc71; --warning: #f1c40f; --blue: #3498db; }
+        :root { --primary: #e63946; --dark: #1b1b1b; --success: #2ecc71; --warning: #f1c40f; --blue: #3498db; --gold: #f39c12; }
         body { font-family: 'Lexend', sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; }
+        .container { max-width: 1100px; margin: auto; }
         
         header { background: var(--dark); color: white; padding: 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
         h2 { margin-top: 0; display: flex; align-items: center; gap: 10px; }
 
-        /* Estilos Novos: Busca e Filtros */
+        /* Dashboard Financeiro */
+        .fin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .fin-card { padding: 20px; border-radius: 12px; color: white; text-align: center; }
+        .fin-dia { background: var(--blue); }
+        .fin-semana { background: var(--gold); }
+        .fin-mes { background: var(--success); }
+        .fin-card h3 { margin: 0; font-size: 14px; opacity: 0.9; text-transform: uppercase; }
+        .fin-card p { margin: 5px 0 0; font-size: 24px; font-weight: 700; }
+
         .controls-row { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .search-input { flex: 1; min-width: 200px; padding: 10px; border-radius: 8px; border: 1px solid #ddd; }
-        .filter-select { width: 200px; padding: 10px; border-radius: 8px; border: 1px solid #ddd; }
-
+        
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th { text-align: left; padding: 12px; border-bottom: 2px solid #eee; color: #666; }
         td { padding: 12px; border-bottom: 1px solid #eee; }
@@ -36,20 +43,12 @@
         .badge-3 { background: var(--success); color: #fff; }
 
         .btn-step { border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.3s; margin-right: 5px; }
-        .btn-cozinha { background: var(--warning); color: #000; }
-        .btn-rota { background: var(--blue); color: #fff; }
-        .btn-whats { background: #25d366; color: #fff; }
-        .btn-wait { background: #ccc; color: #666; cursor: not-allowed; }
-        .btn-delete { background: #ff4d4d; color: white; padding: 8px 12px; }
-        .btn-delete:hover { background: #b30000; }
-
-        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        input, select { padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-top: 5px; }
+        .btn-export { background: #27ae60; color: white; }
+        .btn-delete { background: #ff4d4d; color: white; }
         
-        .tab-nav { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { padding: 10px 20px; background: #ddd; border-radius: 8px; cursor: pointer; border: none; font-weight: 600; }
+        .tab-nav { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; }
+        .tab-btn { padding: 10px 20px; background: #ddd; border-radius: 8px; cursor: pointer; border: none; font-weight: 600; white-space: nowrap; }
         .tab-btn.active { background: var(--primary); color: white; }
-        
         .hidden { display: none; }
     </style>
 </head>
@@ -58,39 +57,31 @@
 <div class="container">
     <header>
         <div>
-            <h1 style="margin:0; font-size:20px;">Painel de Controle</h1>
-            <span style="font-size:12px; opacity:0.7;">Burguer Já | Gestão de Pedidos</span>
+            <h1 style="margin:0; font-size:20px;">Painel Burguer Já</h1>
+            <span style="font-size:12px; opacity:0.7;">Gestão Profissional de Pedidos</span>
         </div>
-        <i class="fas fa-store"></i>
+        <button class="btn-step btn-export" onclick="exportarRelatorio()"><i class="fas fa-file-export"></i> Exportar CSV</button>
     </header>
 
     <div class="tab-nav">
         <button class="tab-btn active" onclick="showTab('tab-pedidos', this)">Pedidos Ativos</button>
-        <button class="tab-btn" onclick="showTab('tab-config', this)">Configurações</button>
+        <button class="tab-btn" onclick="showTab('tab-financeiro', this)">Relatórios & Financeiro</button>
         <button class="tab-btn" onclick="showTab('tab-historico', this)">Histórico</button>
+        <button class="tab-btn" onclick="showTab('tab-config', this)">Configurações</button>
     </div>
 
     <div id="tab-pedidos" class="tab-content">
         <div class="card">
-            <h2><i class="fas fa-utensils"></i> Pedidos em Andamento</h2>
-            
+            <h2><i class="fas fa-utensils"></i> Em Andamento</h2>
             <div class="controls-row">
-                <input type="text" id="search-pedidos" class="search-input" placeholder="Buscar por cliente ou item..." onkeyup="render()">
-                <select id="filter-status" class="filter-select" onchange="render()">
-                    <option value="todos">Todos os Status</option>
-                    <option value="0">Cozinha</option>
-                    <option value="1">Em Rota</option>
-                    <option value="2">Entregue (Aguardando)</option>
-                    <option value="3">Feedback Pronto</option>
-                </select>
+                <input type="text" id="search-pedidos" class="search-input" placeholder="Buscar cliente ou item..." onkeyup="render()">
             </div>
-
-            <table id="tabela-pedidos">
+            <table>
                 <thead>
                     <tr>
                         <th>Cliente / Itens</th>
+                        <th>Valor</th>
                         <th>Status</th>
-                        <th>Tempo Feedback</th>
                         <th>Ações</th>
                     </tr>
                 </thead>
@@ -99,20 +90,25 @@
         </div>
     </div>
 
-    <div id="tab-config" class="tab-content hidden">
-        <div class="card">
-            <h2><i class="fas fa-cog"></i> Ajustes do Sistema</h2>
-            <div class="config-grid">
-                <div>
-                    <label>Tempo p/ Feedback (minutos)</label>
-                    <input type="number" id="cfg-tempo" value="30" style="width: 100%;">
-                </div>
-                <div>
-                    <label>Mensagem de Feedback</label>
-                    <input type="text" id="cfg-msg" value="Olá! O que achou do seu Burguer Já?" style="width: 100%;">
-                </div>
+    <div id="tab-financeiro" class="tab-content hidden">
+        <div class="fin-grid">
+            <div class="fin-card fin-dia">
+                <h3>Hoje</h3>
+                <p id="total-dia">R$ 0,00</p>
             </div>
-            <button class="btn-step" style="background:var(--dark); color:white; margin-top:15px;" onclick="salvarConfig()">Salvar Configurações</button>
+            <div class="fin-card fin-semana">
+                <h3>Esta Semana</h3>
+                <p id="total-semana">R$ 0,00</p>
+            </div>
+            <div class="fin-card fin-mes">
+                <h3>Este Mês</h3>
+                <p id="total-mes">R$ 0,00</p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2><i class="fas fa-chart-line"></i> Resumo de Vendas</h2>
+            <p>Os valores abaixo consideram todos os pedidos entregues ou finalizados.</p>
         </div>
     </div>
 
@@ -122,17 +118,29 @@
             <div class="controls-row">
                 <input type="text" id="search-historico" class="search-input" placeholder="Buscar no histórico..." onkeyup="render()">
             </div>
-            <table>
+            <table id="tabela-historico">
                 <thead>
                     <tr>
+                        <th>Data</th>
                         <th>Cliente</th>
-                        <th>Data/Hora</th>
+                        <th>Valor</th>
                         <th>Telefone</th>
-                        <th>Ações</th>
+                        <th>Ação</th>
                     </tr>
                 </thead>
                 <tbody id="lista-historico"></tbody>
             </table>
+        </div>
+    </div>
+
+    <div id="tab-config" class="tab-content hidden">
+        <div class="card">
+            <h2><i class="fas fa-cog"></i> Configurações</h2>
+            <label>Tempo Feedback (min)</label>
+            <input type="number" id="cfg-tempo" style="width:100%; margin-bottom:15px;">
+            <label>Mensagem Feedback</label>
+            <input type="text" id="cfg-msg" style="width:100%; margin-bottom:15px;">
+            <button class="btn-step" style="background:var(--dark); color:white" onclick="salvarConfig()">Salvar</button>
         </div>
     </div>
 </div>
@@ -143,132 +151,113 @@
     const database = firebase.database();
 
     let pedidos = [];
-    let configs = { tempo: 30, msg: "Olá! O que achou do seu Burguer Já?" };
+    let configs = { tempo: 30, msg: "" };
 
-    database.ref('configuracoes').on('value', (snapshot) => {
-        if(snapshot.exists()) {
-            configs = snapshot.val();
-            document.getElementById('cfg-tempo').value = configs.tempo;
-            document.getElementById('cfg-msg').value = configs.msg;
-        }
-    });
-
-    database.ref('pedidos').on('value', (snapshot) => {
-        const data = snapshot.val();
+    database.ref('configuracoes').on('value', s => { if(s.exists()) configs = s.val(); });
+    database.ref('pedidos').on('value', s => {
+        const data = s.val();
         pedidos = data ? Object.values(data) : [];
         render();
+        calcularFinanceiro();
     });
 
     function render() {
-        const dashCorpo = document.getElementById('lista-dashboard');
-        const histCorpo = document.getElementById('lista-historico');
+        const dash = document.getElementById('lista-dashboard');
+        const hist = document.getElementById('lista-historico');
         const buscaAtiva = document.getElementById('search-pedidos').value.toLowerCase();
-        const filtroStatus = document.getElementById('filter-status').value;
         const buscaHist = document.getElementById('search-historico').value.toLowerCase();
-
-        dashCorpo.innerHTML = '';
-        histCorpo.innerHTML = '';
         
+        dash.innerHTML = ''; hist.innerHTML = '';
         const agora = Date.now();
 
         pedidos.forEach(p => {
-            // Lógica de tempo para o botão de Feedback
-            if(p.status === 2 && (agora - p.horaEntrega) >= (configs.tempo * 60000)) {
-                p.status = 3;
-                database.ref('pedidos/' + p.id).update({ status: 3 });
-            }
+            const valor = parseFloat(p.total || 0);
 
-            // FILTROS DA ABA ATIVOS
-            const atendeBusca = p.nome.toLowerCase().includes(buscaAtiva) || p.itens.toLowerCase().includes(buscaAtiva);
-            const atendeStatus = filtroStatus === "todos" || p.status == filtroStatus;
-
-            if (p.status < 4 && atendeBusca && atendeStatus) {
-                let btnAction = '';
-                let tempoTxt = '--';
-
-                if(p.status === 0) {
-                    btnAction = `<button class="btn-step btn-cozinha" onclick="mudarStatus('${p.id}', 1)">Saiu p/ Entrega</button>`;
-                } else if(p.status === 1) {
-                    btnAction = `<button class="btn-step btn-rota" onclick="mudarStatus('${p.id}', 2)">Entregue</button>`;
-                } else if(p.status === 2) {
-                    const decorrido = Math.floor((agora - p.horaEntrega) / 60000);
-                    const restante = configs.tempo - decorrido;
-                    btnAction = `<button class="btn-step btn-wait" disabled>Aguardar ${restante}m</button>`;
-                    tempoTxt = `${restante} min restante`;
-                } else if(p.status === 3) {
-                    btnAction = `<button class="btn-step btn-whats" onclick="enviarFeedback('${p.id}')">Feedback</button>`;
-                    tempoTxt = `<b style="color:var(--success)">PRONTO!</b>`;
-                }
-
-                dashCorpo.innerHTML += `
+            // Filtro Ativos
+            if (p.status < 4 && (p.nome.toLowerCase().includes(buscaAtiva) || p.itens.toLowerCase().includes(buscaAtiva))) {
+                dash.innerHTML += `
                     <tr>
+                        <td><b>${p.nome}</b><br><small>${p.itens}</small></td>
+                        <td>R$ ${valor.toFixed(2)}</td>
+                        <td><span class="badge badge-${p.status}">${["Cozinha","Rota","Entregue","Feedback"][p.status]}</span></td>
                         <td>
-                            <b>${p.nome}</b><br>
-                            <small>${p.itens}</small><br>
-                            <small style="color:#888">${p.telefone}</small>
-                        </td>
-                        <td><span class="badge badge-${p.status}">${["Cozinha", "Em Rota", "Entregue", "Feedback"][p.status]}</span></td>
-                        <td>${tempoTxt}</td>
-                        <td>
-                            ${btnAction}
                             <button class="btn-step btn-delete" onclick="excluirPedido('${p.id}')"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>`;
             }
 
-            // ABA HISTÓRICO COM BUSCA
-            if(p.status >= 2 && (p.nome.toLowerCase().includes(buscaHist) || p.telefone.includes(buscaHist))) {
-                histCorpo.innerHTML += `
+            // Filtro Histórico
+            if (p.status >= 2 && (p.nome.toLowerCase().includes(buscaHist))) {
+                hist.innerHTML += `
                     <tr>
+                        <td>${new Date(p.horario).toLocaleDateString()}</td>
                         <td>${p.nome}</td>
-                        <td>${new Date(p.horario).toLocaleString()}</td>
+                        <td>R$ ${valor.toFixed(2)}</td>
                         <td>${p.telefone}</td>
-                        <td>
-                            <button class="btn-step btn-delete" onclick="excluirPedido('${p.id}')"><i class="fas fa-trash"></i></button>
-                        </td>
+                        <td><button class="btn-step btn-delete" onclick="excluirPedido('${p.id}')"><i class="fas fa-trash"></i></button></td>
                     </tr>`;
             }
         });
     }
 
-    function mudarStatus(id, novo) {
-        const updates = { status: novo };
-        if(novo === 2) updates.horaEntrega = Date.now();
-        database.ref('pedidos/' + id).update(updates);
+    function calcularFinanceiro() {
+        const agora = new Date();
+        let totalDia = 0, totalSemana = 0, totalMes = 0;
+
+        const inicioDia = new Date().setHours(0,0,0,0);
+        const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1).getTime();
+        
+        // Início da semana (considerando Segunda como dia 1)
+        const d = new Date();
+        const day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6:1);
+        const inicioSemana = new Date(d.setDate(diff)).setHours(0,0,0,0);
+
+        pedidos.forEach(p => {
+            if(p.status >= 2) { // Só conta pedidos entregues/finalizados
+                const v = parseFloat(p.total || 0);
+                const h = p.horario;
+                if(h >= inicioDia) totalDia += v;
+                if(h >= inicioSemana) totalSemana += v;
+                if(h >= inicioMes) totalMes += v;
+            }
+        });
+
+        document.getElementById('total-dia').innerText = `R$ ${totalDia.toFixed(2)}`;
+        document.getElementById('total-semana').innerText = `R$ ${totalSemana.toFixed(2)}`;
+        document.getElementById('total-mes').innerText = `R$ ${totalMes.toFixed(2)}`;
     }
 
-    // FUNÇÃO DE EXCLUIR COM CONFIRMAÇÃO
+    function exportarRelatorio() {
+        let csv = "Data,Cliente,Itens,Valor,Telefone\n";
+        pedidos.forEach(p => {
+            const data = new Date(p.horario).toLocaleDateString();
+            csv += `${data},${p.nome},${p.itens.replace(/,/g, '|')},${p.total},${p.telefone}\n`;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute("download", `relatorio_vendas_burguerja.csv`);
+        link.click();
+    }
+
     function excluirPedido(id) {
-        const certeza = confirm("Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.");
-        if (certeza) {
-            database.ref('pedidos/' + id).remove()
-                .then(() => alert("Pedido removido com sucesso!"))
-                .catch((error) => alert("Erro ao remover: " + error));
-        }
+        if(confirm("Tem certeza que deseja excluir?")) database.ref('pedidos/' + id).remove();
     }
 
-    function enviarFeedback(id) {
-        const p = pedidos.find(item => item.id == id);
-        const msg = encodeURIComponent(configs.msg);
-        window.open(`https://wa.me/55${p.telefone.replace(/\D/g,'')}?text=${msg}`);
-    }
-
-    function salvarConfig() {
-        const tempo = document.getElementById('cfg-tempo').value;
-        const msg = document.getElementById('cfg-msg').value;
-        database.ref('configuracoes').set({ tempo, msg });
-        alert("Configurações salvas!");
-    }
-
-    function showTab(tabId, btn) {
+    function showTab(id, btn) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(tabId).classList.remove('hidden');
+        document.getElementById(id).classList.remove('hidden');
         btn.classList.add('active');
     }
 
-    setInterval(render, 30000); // Atualiza a cada 30 seg para o cronômetro
+    function salvarConfig() {
+        const t = document.getElementById('cfg-tempo').value;
+        const m = document.getElementById('cfg-msg').value;
+        database.ref('configuracoes').set({ tempo: t, msg: m });
+        alert("Salvo!");
+    }
 </script>
-
 </body>
 </html>
